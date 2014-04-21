@@ -13,6 +13,7 @@ import javax.swing.Icon;
 import javax.swing.ImageIcon;
 import javax.swing.JTextField;
 import javax.swing.plaf.basic.BasicTextFieldUI;
+import javax.swing.text.JTextComponent;
 /**
  *
  * @author ruinmaxk
@@ -22,19 +23,24 @@ public class CustomTextFieldComponent extends JTextField implements FocusListene
 
     private Icon icon;
     
-    private final String hint;
-    private boolean showingHint;
+    private String hint;
+    private Color hintColor;
     
     public CustomTextFieldComponent () {
         this("");
     }
     
-    public CustomTextFieldComponent (final String hint){
+    public CustomTextFieldComponent (String hint) {
+        this("", null);
+    }
+    
+    public CustomTextFieldComponent (String hint, Color color){
         super(hint);
         
         icon = new ImageIcon();
         this.hint = hint;
-        this.showingHint = true;
+        this.hintColor = color;
+        
         super.addFocusListener(this);
     }
     
@@ -42,21 +48,20 @@ public class CustomTextFieldComponent extends JTextField implements FocusListene
     public void focusGained(FocusEvent e) {
         if (this.getText().isEmpty()) {
             super.setText("");
-            showingHint = false;
         }
     }
 
     @Override
     public void focusLost(FocusEvent e) {
         if (this.getText().isEmpty()) {
-            super.setText(hint);
-            showingHint = true;
+            setHint(hint);
         }
     }
  
     @Override
     public String getText() {
-        return showingHint ? "" : super.getText();
+        String typed = super.getText();
+        return typed.equals(hint) ? "" : typed;
     }
 
     /**
@@ -72,8 +77,25 @@ public class CustomTextFieldComponent extends JTextField implements FocusListene
     public void setIcon(Icon icon) {
         this.icon = icon;
     }
+    
+    public void setHint(String hint) {
+        this.hint = hint;
+        setUI(new HintTextFieldUI(hint, false, hintColor));
+    }
 
-    class HintTextFieldUI extends BasicTextFieldUI {
+    public void setHintColor(Color color) {
+        this.hintColor = color;
+        if (getUI() instanceof HintTextFieldUI) {
+            ((HintTextFieldUI)getUI()).setColor(color);
+        }
+        
+    }
+    
+    public Color getHintColor() {
+        return hintColor;
+    }
+    
+    class HintTextFieldUI extends BasicTextFieldUI implements FocusListener {
         private String hint;
         private boolean hideOnFocus;
         private Color color;
@@ -86,6 +108,81 @@ public class CustomTextFieldComponent extends JTextField implements FocusListene
             this.color = color;
             repaint();
         }
+        
+        public void repaint() {
+            if (getComponent() != null) {
+                getComponent().repaint();
+            }
+        }
+        
+        public boolean isHideOnFocus() {
+            return hideOnFocus;
+        }
+        
+        public void setHideOnFocus (boolean hideOnFocus) {
+            this.hideOnFocus = hideOnFocus;
+            repaint();
+        }
+        
+        public String getHint() {
+            return hint;
+        }
+        
+        public void setHint(String hint) {
+            this.hint = hint;
+            repaint();
+        }
+        
+        public HintTextFieldUI(String hint) {
+            this(hint, false);
+        }
+        
+        public HintTextFieldUI(String hint, boolean hideOnFocus) {
+            this(hint, hideOnFocus, null);
+        }
+
+        public HintTextFieldUI(String hint, boolean hideOnFocus, Color color) {
+            this.hint = hint;
+            this.hideOnFocus = hideOnFocus;
+            this.color = color;
+        }
+        
+        @Override
+        protected void paintSafely(Graphics g) {
+            super.paintSafely(g);
+            JTextComponent comp = getComponent();
+            
+            if (hint != null && comp.getText().isEmpty() && !(hideOnFocus && comp.hasFocus())) {
+                if (color != null) {
+                    g.setColor(color);
+                } else {
+                    g.setColor(Color.GRAY);
+                }
+                int padding = (comp.getHeight() - comp.getFont().getSize()) / 2;
+                g.drawString(hint, 5, comp.getHeight() - padding - 1);
+            }
+        }
+        
+        @Override
+        public void focusGained(FocusEvent e) {
+            if (hideOnFocus) repaint();
+        }
+        
+        @Override
+        public void focusLost(FocusEvent e) {
+            if (hideOnFocus) repaint();
+        }
+        
+        @Override
+        protected void installListeners() {
+            super.installListeners();
+            getComponent().addFocusListener(this);
+        }
+        
+        @Override
+        protected void uninstallListeners() {
+            super.uninstallListeners();
+            getComponent().removeFocusListener(this);
+        }
     }
 }
-
